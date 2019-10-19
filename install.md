@@ -16,7 +16,7 @@ Use all the default settings of the installer. If it asks for who to install it,
 
 Start an "Anaconda Prompt". We will now create a new Conda environment with the name `dlscratch` that contains Python (3.7), Jupyter, Matplotlib, Pandas, and TensorFlow. First create the environment with most packages using the following command.
 
-    conda create -n dlscratch jupyter matplotlib pandas
+    conda create -n dlscratch python==3.7.4 jupyter==1.0.0 matplotlib==3.1.1 pandas==0.25.1
 
 All required packages will be downloaded (about 280 MB) and then installed. It can take a few minutes.
 
@@ -26,7 +26,7 @@ Once it's finished we can check if it works by activating the environment.
 
 Next up is TensorFlow. We need the latest and greatest version of TensorFlow, 2.0, which is not yet available as a Conda package. So we have to install it via `pip`.  Make sure you are still in the `dlscratch` Conda environment and type the following command.
 
-    pip install tensorflow
+    pip install tensorflow==2.0.0
 
 This will download and install the latest version of TensorFlow and its dependencies (about 60 MB in total).
 
