@@ -41,27 +41,33 @@ def sigmoid(z):
     return 1 / (1 + np.exp(-z))
 
 def binary_cross_entropy_loss(y_true, y_pred):
-    y_pred = np.clip(y_pred, 1e-7, 1-1e-7)
-    return -np.mean(y_true * np.log(y_pred) + (1-y_true) * np.log(1-y_pred))
+    y_pred = np.clip(y_pred, 1e-7, 1-1e-7) # Prevent log of zero
+    losses = -(y_true * np.log(y_pred) + (1-y_true) * np.log(1-y_pred))
+    loss = np.mean(losses)
+    return loss
 
 def binary_cross_entropy_loss_backward(y_true, y_pred):
-    y_pred = np.clip(y_pred, 1e-7, 1-1e-7)
-    return (1 / y_pred.shape[0]) * (y_pred - y_true) / (y_pred * (1 - y_pred))
+    y_pred = np.clip(y_pred, 1e-7, 1-1e-7) # Prevent division by zero
+    N = len(y_pred)
+    dl_dlosses = 1 / N
+    dlosses_dy_pred = (y_pred - y_true) / (y_pred * (1 - y_pred))
+    dl_dy_pred = dl_dlosses * dlosses_dy_pred
+    return dl_dy_pred
 
-def sigmoid_backward(z, da):
+def sigmoid_backward(z, dl_da):
     sig = sigmoid(z)
-    return da * sig * (1 - sig)
+    return dl_da * sig * (1 - sig)
 
-def relu_backward(z, da):
-    dz = np.array(da, copy=True)
-    dz[z <= 0] = 0
-    return dz
+def relu_backward(z, dl_da):
+    dl_dz = np.array(dl_da, copy=True)
+    dl_dz[z <= 0] = 0
+    return dl_dz
 
-def dense_backward(a_prev, dz, w):
-    dw = np.matmul(a_prev.T, dz)
-    db = np.sum(dz, axis=0, keepdims=True)
-    da_prev = np.matmul(dz, w.T)
-    return dw, db, da_prev
+def dense_backward(a_prev, w, dl_dz):
+    dl_dw = np.matmul(a_prev.T, dl_dz)
+    dl_db = np.sum(dl_dz, axis=0, keepdims=True)
+    dl_da_prev = np.matmul(dl_dz, w.T)
+    return dl_dw, dl_db, dl_da_prev
 
 
 # Complete model
@@ -70,11 +76,11 @@ def dense_backward(a_prev, dz, w):
 class Model(object):
     def __init__(self):
         N0, N1, N2,N3 = 5, 64, 64, 1
-        self.w1 = np.random.uniform(-0.3, 0.3, size=(N0, N1))
+        self.w1 = np.random.uniform(-0.5, 0.5, size=(N0, N1))
         self.b1 = np.zeros((1, N1))
-        self.w2 = np.random.uniform(-0.2, 0.2, size=(N1, N2))
+        self.w2 = np.random.uniform(-0.5, 0.5, size=(N1, N2))
         self.b2 = np.zeros((1, N2))
-        self.w3 = np.random.uniform(-0.3, 0.3, size=(N2, N3))
+        self.w3 = np.random.uniform(-0.5, 0.5, size=(N2, N3))
         self.b3 = np.zeros((1, N3))
         
     def predict(self, x):
@@ -88,9 +94,10 @@ class Model(object):
         y_pred = a3
         return y_pred
     
-    def compute_loss(self, x, y_true):
+    def evaluate(self, x, y_true):
         y_pred = self.predict(x)
-        return binary_cross_entropy_loss(y_true, y_pred)
+        loss = binary_cross_entropy_loss(y_true, y_pred)
+        return loss
 
     def get_gradients(self, x, y_true):
         a0 = x
@@ -103,27 +110,28 @@ class Model(object):
         y_pred = a3
 
         loss = binary_cross_entropy_loss(y_true, y_pred)
-        dy_pred = binary_cross_entropy_loss_backward(y_true, y_pred)
 
-        da3 = dy_pred
-        dz3 = sigmoid_backward(z3, da3)
-        dw3, db3, da2 = dense_backward(a2, dz3, self.w3)
-        dz2 = relu_backward(z2, da2)
-        dw2, db2, da1 = dense_backward(a1, dz2, self.w2)
-        dz1 = relu_backward(z1, da1)
-        dw1, db1, da0 = dense_backward(a0, dz1, self.w1)
-        dx = da0
-        return loss, dx, dw1, db1, dw2, db2, dw3, db3
+        dl_dy_pred = binary_cross_entropy_loss_backward(y_true, y_pred)
+
+        dl_da3 = dl_dy_pred
+        dl_dz3 = sigmoid_backward(z3, dl_da3)
+        dl_dw3, dl_db3, dl_da2 = dense_backward(a2, self.w3, dl_dz3)
+        dl_dz2 = relu_backward(z2, dl_da2)
+        dl_dw2, dl_db2, dl_da1 = dense_backward(a1, self.w2, dl_dz2)
+        dl_dz1 = relu_backward(z1, dl_da1)
+        dl_dw1, dl_db1, dl_da0 = dense_backward(a0, self.w1, dl_dz1)
+        dl_dx = dl_da0
+        return loss, dl_dx, dl_dw1, dl_db1, dl_dw2, dl_db2, dl_dw3, dl_db3
     
 
 def train(model, x, y_true, learning_rate):
-    loss, dx, dw1, db1, dw2, db2, dw3, db3 = model.get_gradients(x, y_true)
-    model.w1 -= learning_rate * dw1
-    model.b1 -= learning_rate * db1
-    model.w2 -= learning_rate * dw2
-    model.b2 -= learning_rate * db2
-    model.w3 -= learning_rate * dw3
-    model.b3 -= learning_rate * db3
+    loss, dl_dx, dl_dw1, dl_db1, dl_dw2, dl_db2, dl_dw3, dl_db3 = model.get_gradients(x, y_true)
+    model.w1 -= learning_rate * dl_dw1
+    model.b1 -= learning_rate * dl_db1
+    model.w2 -= learning_rate * dl_dw2
+    model.b2 -= learning_rate * dl_db2
+    model.w3 -= learning_rate * dl_dw3
+    model.b3 -= learning_rate * dl_db3
     return loss
 
 # Metrics
