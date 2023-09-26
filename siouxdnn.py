@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 import pandas
 
 # Data and environment
@@ -26,7 +25,6 @@ def load_data():
 
 def reset_seed(seed = 1234):
     np.random.seed(seed)
-    tf.random.set_seed(seed)
 
 
 # Core functions
@@ -136,7 +134,7 @@ def train(model, x, y_true, learning_rate):
 
 # Metrics
 
-def get_metrics(y_true, y_pred):
+def get_accuracy(y_true, y_pred):
     y_true = (y_true >= 0.5)
     y_pred = (y_pred >= 0.5)
 
@@ -146,7 +144,5 @@ def get_metrics(y_true, y_pred):
     tn = np.sum(~y_pred & ~y_true)
 
     accuracy = (tp + tn) / (tp + tn + fp + fn)
-    precision = tp / (tp + fp) if (tp + fp) != 0 else 0
-    recall = tp / (tp + fn) if (tp + fn) != 0 else 0
         
-    return accuracy, precision, recall
+    return accuracy
