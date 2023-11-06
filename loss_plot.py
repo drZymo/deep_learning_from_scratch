@@ -24,7 +24,7 @@ def finish_loss_plot():
     loss_plot_ax.plot(val_losses, label='validation loss')
     loss_plot_fig.canvas.draw()
     
-def add_loss_to_plot(train_loss, val_loss, redraw=True):
+def add_loss_to_plot(train_loss, val_loss, redraw=False):
     global train_losses, val_losses, loss_plot_fig, loss_plot_ax
     train_losses.append(train_loss)
     val_losses.append(val_loss)
